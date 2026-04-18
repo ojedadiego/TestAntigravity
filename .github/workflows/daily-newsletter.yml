@@ -1,0 +1,39 @@
+name: Daily AI Newsletter
+
+on:
+  schedule:
+    # Runs at 09:00 UTC every day, which is 6:00 AM UTC-3 (User's timezone)
+    - cron: '0 9 * * *'
+  workflow_dispatch: # Allows manual triggering from the GitHub UI
+
+jobs:
+  generate-and-send:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: npm ci
+        
+      - name: Generate and Send Newsletter
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+        run: npm run generate
+        
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/newsletters/*.json
+          # Check if there are changes before committing
+          git diff --quiet && git diff --staged --quiet || (git commit -m "docs: generate daily newsletter [skip ci]" && git push)
